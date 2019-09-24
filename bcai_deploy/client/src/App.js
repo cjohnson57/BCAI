@@ -79,20 +79,13 @@ class App extends Component {
     this.TargetChange = this.TargetChange.bind(this);
     this.PriceChange  = this.PriceChange.bind(this);
     this.submitRequest = this.submitRequest.bind(this);
-    this.submitJob    = this.submitJob.bind(this);
-    this.submitValidation = this.submitValidation.bind(this);
     this.serverSubmit = this.serverSubmit.bind(this);
-    this.changeMode   = this.changeMode.bind(this);
     this.changeAccount = this.changeAccount.bind(this);
     this.showIDs      = this.showIDs.bind(this);
     this.addNotification = this.addNotification.bind(this);
-    this.applyAsProvider = this.applyAsProvider.bind(this);
-    this.submitValidationTrue   = this.submitValidationTrue.bind(this);
-    this.submitValidationFalse  = this.submitValidationFalse.bind(this);
-    this.stopJob      = this.stopJob.bind(this);
-    this.stopProviding = this.stopProviding.bind(this);
-    this.buildSocket  = this.buildSocket.bind(this);
+   this.buildSocket  = this.buildSocket.bind(this);
     this.DownloadInfo = this.DownloadInfo.bind(this);
+    
     this.notificationDOMRef = React.createRef();
   }
 
@@ -196,154 +189,221 @@ class App extends Component {
   buildSocket = async(loc) => {
     var socket ;
     //this is entered if the location that the server is not within the current computer
-    if(loc.indexOf('localhost') === -1){
+    //REMOVED: If unnecessary now
+    //if(loc.indexOf('localhost') === -1){
       
       //create the connection
       socket = io.connect("http://" + loc + "/");
-      
-      //once the connection is created call to setup the connection correctly and ask for the data
-      socket.on("connect", () => {
-        socket.emit('setUp', this.state.myIP);
-        socket.emit('request', this.state.myIP);
-      });
 
-      //this is called when a server send data in responce to this current computer's request
-      socket.on('transmitting' + this.state.myIP, (tag , dat)=>{
-        console.log("Got:transmitting and tag:" + tag + " and data:" + dat + " was received.")
-        if(dat !== undefined){                     
-            socket.emit('recieved', this.state.myIP); 
-            console.log("emit:recieved msg:" + this.state.myIP);
-            if(tag === "data"){
-                this.setState({data: dat});
-            }
-            if(tag === "result"){
-                this.setState({result: dat});
-            }
-        }
-        //if the data is not recieved it will be asked for again
-        else{ 
-            socket.emit('request', this.state.myIP);
-            console.log('emit:request msg:' + this.state.myIP); 
-        }
-      });
-
-      //this is recieved after the server has send the data
-      //if the data is not received that it will request for the data agian
-      //if the data is recieved then it will close the connection
-      socket.on('fin', (msg) => {
-        console.log("Got:fin and msg:" + msg);
-        if((msg === "data" && this.state.data === undefined) || (msg === "result" && this.state.result === undefined)){ 
-          socket.emit('request', this.state.myIP); 
-          console.log('emit:request msg:' + this.state.myIP);
+      //ADDED: Request listener
+      //After server sets up connection, send data once a request is made
+      socket.on('request', ()=> {
+        console.log("Got:request from:" + socket);
+        if(this.statebuffer !== undefined){
+            socket.emit('transmitting', this.state.buffer);
+            console.log("emit:transmitting" );
         }
         else{
-            console.log("Finished and the socket will close now")
-            socket.disconnect(true);        }
+        console.log("NO FILE FOUND!! Something seriously wrong has happened. The environment does not have the result saved for some reason.");
+        } 
       });
+
+      //ADDED: Replacement for transmitting listener
+      //this is called when a server send data in response to this current computer's request
+      socket.on('transmitting', ( data )=>{
+        console.log("Got data: " + data)
+        if(data !== undefined){                     
+            socket.disconnect(true);
+            writeFile(data);
+            socket.emit('goodbye'); //tell host that they are done, host can clear buffer
+        }
+        else{
+            socket.emit('request');
+        }
+    });
+
+    //ADDED
+    //function to write a file
+    //this is a helper function for request
+    function writeFile(data){
+      //Make it download data to image.zip
+      var d = "image.zip"
+      var atr = document.createAttribute("download");
+      atr.value = d;
+      this.setAttributeNode(atr);
+      var blob = new Blob([data], {type: "octet/stream"});
+      var downloadUrl = URL.createObjectURL(blob);
+      this.setAttribute("href", downloadUrl);
     }
+      
+    function test(){
+      var d = "image.zip"
+      var atr = document.createAttribute("download");
+      atr.value = d;
+      this.setAttributeNode(atr);
+      var blob = new Blob([this.state.buffer], {type: "octet/stream"});
+      var downloadUrl = URL.createObjectURL(blob);
+      this.setAttribute("href", downloadUrl);
+    }
+
+    function test2(){
+      console.log("hello");
+    }
+
+      //REMOVED: Need to reconfigure
+      // //once the connection is created call to setup the connection correctly and ask for the data
+      // socket.on("connect", () => {
+      //   socket.emit('setUp', this.state.myIP);
+      //   socket.emit('request', this.state.myIP);
+      // });
+
+      //REMOVED: Replaced with new transmitting listener below
+      //this is called when a server send data in responce to this current computer's request
+      // socket.on('transmitting' + this.state.myIP, (tag , dat)=>{
+      //   console.log("Got:transmitting and tag:" + tag + " and data:" + dat + " was received.")
+      //   if(dat !== undefined){                     
+      //       socket.emit('recieved', this.state.myIP); 
+      //       console.log("emit:recieved msg:" + this.state.myIP);
+      //       if(tag === "data"){
+      //           this.setState({data: dat});
+      //       }
+      //       if(tag === "result"){
+      //           this.setState({result: dat});
+      //       }
+      //   }
+      //   //if the data is not recieved it will be asked for again
+      //   else{ 
+      //       socket.emit('request', this.state.myIP);
+      //       console.log('emit:request msg:' + this.state.myIP); 
+      //   }
+      // });
+
+      //REMOVED: No longer needed
+      // //this is recieved after the server has send the data
+      // //if the data is not received that it will request for the data agian
+      // //if the data is recieved then it will close the connection
+      // socket.on('fin', (msg) => {
+      //   console.log("Got:fin and msg:" + msg);
+      //   if((msg === "data" && this.state.data === undefined) || (msg === "result" && this.state.result === undefined)){ 
+      //     socket.emit('request', this.state.myIP); 
+      //     console.log('emit:request msg:' + this.state.myIP);
+      //   }
+      //   else{
+      //       console.log("Finished and the socket will close now")
+      //       socket.disconnect(true);        }
+      // });
+    //}
 
     //if you are attmepting to connect to a server that is on the current computer
     //this is necessary for the browser to send the data to other computers and to
     //ececute the code
-    else{
-      socket = io(loc);
+    //REMOVED: No longer used
+    // else{
+    //   socket = io(loc);
 
-      //this is sent so that the browser is able to learn what its public ip is
-      //this is not easily gotten so the local server deals with it
-      socket.on('whoAmI', (msg) =>{
-        if(this.state.ip === undefined){
-          console.log("whoAmI just fired : " + msg)
-          console.log(typeof msg);
-          this.setState({myIP : msg});
-          if(this.state.buffer !== undefined){
-            socket.emit('setupMode', this.state.mode);
-            socket.emit("setupBuffer", this.state.buffer);
-          }
-        }
-        else{
-          socket.emit("reset");
-        }
-      });
+    //   //this is sent so that the browser is able to learn what its public ip is
+    //   //this is not easily gotten so the local server deals with it
+    //   socket.on('whoAmI', (msg) =>{
+    //     if(this.state.ip === undefined){
+    //       console.log("whoAmI just fired : " + msg)
+    //       console.log(typeof msg);
+    //       this.setState({myIP : msg});
+    //       if(this.state.buffer !== undefined){
+    //         socket.emit('setupMode', this.state.mode);
+    //         socket.emit("setupBuffer", this.state.buffer);
+    //       }
+    //     }
+    //     else{
+    //       socket.emit("reset");
+    //     }
+    //   });
 
-      //this is triggered when the local server does not correctly receive data
-      socket.on('resendData', () => {
-        socket.emit('data', this.state.data);
-      });
+    //   //this is triggered when the local server does not correctly receive data
+    //   socket.on('resendData', () => {
+    //     socket.emit('data', this.state.data);
+    //   });
 
-      //this is triggered when the local server does not correctly receive data
-      socket.on('resendResult', () => {
-        socket.emit('result', this.state.result);
-      });
+    //   //REMOVED: For provider
+    //   // //this is triggered when the local server does not correctly receive data
+    //   // socket.on('resendResult', () => {
+    //   //   socket.emit('result', this.state.result);
+    //   // });
 
-      //this is triggered when the current mode is validator and the result has
-      //been found by the local server
-      socket.on('uploadVal', (val) => {
-        if(this.state.mode === 'WORKER'){
-          if(val){
-            document.getElementById("trueButton").click();
-          }
-          else{
-            document.getElementById('falseButton').click();
-          }
-        }
-      });
+    //   //REMOVED: Because this function is just for provider mode
+    //   // //this is triggered when the current mode is validator and the result has
+    //   // //been found by the local server
+    //   // socket.on('uploadVal', (val) => {
+    //   //   if(this.state.mode === 'WORKER'){
+    //   //     if(val){
+    //   //       document.getElementById("trueButton").click();
+    //   //     }
+    //   //     else{
+    //   //       document.getElementById('falseButton').click();
+    //   //     }
+    //   //   }
+    //   // });
 
-      //this is triggered when the current mode is proider and the code has been trained
-      //and needs to be uploaded
-      socket.on('uploadResult', (data) => {
-        console.log('recieved uploadResult')
-        this.setState({buffer : data});
-        console.log(this.state.buffer);
-        if(this.state.mode === 'WORKER'){  
-          document.getElementById('submitButton').click();
-        }
-        if(this.state.mode === 'USER'){
-          document.getElementById('modeButton').click();
-          document.getElementById('submitButton').click();
-        }
-      })
+    //   //REMOVED: Because this function seems to just be for provider mode
+    //   //this is triggered when the current mode is provider and the code has been trained
+    //   //and needs to be uploaded
+    //   // socket.on('uploadResult', (data) => {
+    //   //   console.log('recieved uploadResult')
+    //   //   this.setState({buffer : data});
+    //   //   console.log(this.state.buffer);
+    //   //   if(this.state.mode === 'WORKER'){  
+    //   //     document.getElementById('submitButton').click();
+    //   //   }
+    //   //   if(this.state.mode === 'USER'){
+    //   //     document.getElementById('modeButton').click();
+    //   //     document.getElementById('submitButton').click();
+    //   //   }
+    //   // })
 
-      //if the browser has been disconnected this will trigger to make sure that the 
-      //browser has the state data
-      socket.on( "browserReconnect" , (newMode, newBuffer) => {
-        //the integer version of mode selection is defined in localEnv.js 
-        //(copied here for ease of understanding)
-        //0-provider
-        //1-validator
-        //2-user
-        if( (newMode === 0 || newMode === 1) && this.state.mode !== "WORKER" ){
-          document.getElementById('modeButton').click();
-        }
-        if( (newBuffer !== undefined || newBuffer !== null) && this.state.buffer === undefined){
-          this.setState({buffer : newBuffer});
-          console.log(this.state.buffer)
-        }
-      });
-    }
+    //   //if the browser has been disconnected this will trigger to make sure that the 
+    //   //browser has the state data
+    //   socket.on( "browserReconnect" , (newMode, newBuffer) => {
+    //     //the integer version of mode selection is defined in localEnv.js 
+    //     //(copied here for ease of understanding)
+    //     //0-provider
+    //     //1-validator
+    //     //2-user
+    //     //REMOVED: Since workermode is no longer considered
+    //     // if( (newMode === 0 || newMode === 1) && this.state.mode !== "WORKER" ){
+    //     //   document.getElementById('modeButton').click();
+    //     // }
+    //     if( (newBuffer !== undefined || newBuffer !== null) && this.state.buffer === undefined){
+    //       this.setState({buffer : newBuffer});
+    //       console.log(this.state.buffer)
+    //     }
+    //   });
+    // }
     return socket;//return so that we can still interact with it later on
   }
 
   //It will create a socket and depending on the current mode it will send it with that
   //specific tag
+  //Should only happen when you want to download info after transaction
   DownloadInfo = async(event) => {
     var tag = undefined;
     var m = undefined;
-    if(event.target.name === "data"){
-      tag = this.state.dataID;
-      m = "WORKER";
-    }
+    //REMOVED: For worker
+    // if(event.target.name === "data"){
+    //   tag = this.state.dataID;
+    //   m = "WORKER";
+    // }
     if(event.target.name === "result"){
       tag = this.state.resultID;
-      if(this.state.mode === "USER"){
+      //REMOVED: For validator
+      //if(this.state.mode === "USER"){
         m = "USER";
-      }
-      else{
-        m = "VALIDATOR";
-            }
+      // }
+      // else{
+      //   m = "VALIDATOR";
+      //       }
     }
     var tempSocket = await this.buildSocket(tag);
-    this.state.socket.emit("setupMode", m);
-    tempSocket.emit("request", this.state.myIP);
+    //this.state.socket.emit("setupMode", m);
+    tempSocket.emit("request");
     console.log(this.state);
     this.setState({tempSocket : tempSocket});
     return tempSocket;
@@ -354,16 +414,17 @@ class App extends Component {
   //https://medium.com/codebuddies/getting-to-know-asynchronous-javascript-callbacks-promises-and-async-await-17e0673281ee
   serverSubmit =  async (event) => {  //declare this as async and it will return a promise, even not explicitly
     event.preventDefault();   //stop refreshing
-    console.log("submiting...")
+    console.log("submitting...")
     this.addNotification("Uploading file...", "Awaiting response from server", "info");
-    if(this.state.mode === "USER"){
+    //REMOVED: Conditional for worker/validator mode
+    // if(this.state.mode === "USER"){
       this.setState({dataID : this.state.myIP});
-    }
-    else{
-      this.setState({resultID : this.state.myIP});
-    }
-    //this.state.socket.emit("setupMode", this.state.mode);
-    this.state.socket.emit('setupBuffer', this.state.buffer);
+    // }
+    // else{
+    //   this.setState({resultID : this.state.myIP});
+    // }
+    // this.state.socket.emit("setupMode", this.state.mode);
+    // this.state.socket.emit('setupBuffer', this.state.buffer);
     console.log(this.state.buffer);
     console.log(typeof this.state.buffer);
     return this.state.myIP;
@@ -429,147 +490,148 @@ class App extends Component {
     console.log("dataID = ",    this.state.dataID);
   }
 
+  //REMOVED: Following 6 functions all removed for being for provider/validator
 
-  //submitJob will check whether you are assigned a task first.
-  //Only if you are assigned, it will send the TX
-  //This check is also done in smart contract, you cannot submit result to other's task.
-  //Given that, checking in client is still necessary because checking onchain consumes gas.
-  submitJob = async (event) => {
-    event.preventDefault();
-    let reqAddr = await this.matchReq(this.state.myAccount)
-    console.log("RequestAddr = ", reqAddr)
-    if (reqAddr === undefined){
-      this.addNotification("Result Submission Failed", "You are not assigned a task", "warning")
-    }
-    else {
-      let resultHash = await this.serverSubmit(event)
-      if (resultHash !== undefined){
-        console.log("ResultHash = ", resultHash)
-        this.state.myContract.completeRequest(reqAddr, this.state.web3.utils.asciiToHex(resultHash),
-          { from: this.state.myAccount, gas:500000 }).then(ret => {
-            console.log("Submit Result Return:", ret);
-            var StartTime = ret.receipt.blockNumber;  //record the block# when submitted, all following events will be tracked from now on
-            this.setState({RequestStartTime : StartTime})
-            this.addNotification("Result Submission Succeed", "Work submitted to contract", "success")
+  // //submitJob will check whether you are assigned a task first.
+  // //Only if you are assigned, it will send the TX
+  // //This check is also done in smart contract, you cannot submit result to other's task.
+  // //Given that, checking in client is still necessary because checking onchain consumes gas.
+  // submitJob = async (event) => {
+  //   event.preventDefault();
+  //   let reqAddr = await this.matchReq(this.state.myAccount)
+  //   console.log("RequestAddr = ", reqAddr)
+  //   if (reqAddr === undefined){
+  //     this.addNotification("Result Submission Failed", "You are not assigned a task", "warning")
+  //   }
+  //   else {
+  //     let resultHash = await this.serverSubmit(event)
+  //     if (resultHash !== undefined){
+  //       console.log("ResultHash = ", resultHash)
+  //       this.state.myContract.completeRequest(reqAddr, this.state.web3.utils.asciiToHex(resultHash),
+  //         { from: this.state.myAccount, gas:500000 }).then(ret => {
+  //           console.log("Submit Result Return:", ret);
+  //           var StartTime = ret.receipt.blockNumber;  //record the block# when submitted, all following events will be tracked from now on
+  //           this.setState({RequestStartTime : StartTime})
+  //           this.addNotification("Result Submission Succeed", "Work submitted to contract", "success")
 
-            //disconnect the socket
-            this.state.tempSocket.emit("goodBye", this.state.myIP);
-            this.state.tempSocket.disconnect(true);
-            this.setState({data : undefined , dataID : undefined , tempSocket: undefined});
-          })
-      }
-      else { console.log("Failed to submit to local server")}
-    }
-  }
+  //           //disconnect the socket
+  //           this.state.tempSocket.emit("goodBye", this.state.myIP);
+  //           this.state.tempSocket.disconnect(true);
+  //           this.setState({data : undefined , dataID : undefined , tempSocket: undefined});
+  //         })
+  //     }
+  //     else { console.log("Failed to submit to local server")}
+  //   }
+  // }
 
-  stopJob(event) {
-    event.preventDefault();
-    console.log("stopJob: " + this.state.resultID)
-    if(this.state.resultID === undefined){
-      this.state.myContract.stopRequest({from: this.state.myAccount})
-      .then(ret => {
-        console.log("Job removed from pendingPool");
-        this.state.socket.emit("dumpBuffer");
-        this.setState({dataID : undefined , data : undefined , resultID : undefined , result : undefined}); //////this is done to remove the ids and files which is no longer valid
-      })
-      .catch(err => {
-        console.log(err)
-      })
-    }
-    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    //NOTE!!!!!! this is curently done in order to delete the resultID once a job has been finished
-    //this needs to be automated some how
-    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    else if(this.state.resultID !== undefined){
-      this.state.tempSocket.emit("goodBye", this.state.myIP);
-      this.state.tempSocket.disconnect(true);
-      this.setState({result : undefined , resultID : undefined , tempSocket: undefined});
-    }
-  }
+  // stopJob(event) {
+  //   event.preventDefault();
+  //   console.log("stopJob: " + this.state.resultID)
+  //   if(this.state.resultID === undefined){
+  //     this.state.myContract.stopRequest({from: this.state.myAccount})
+  //     .then(ret => {
+  //       console.log("Job removed from pendingPool");
+  //       this.state.socket.emit("dumpBuffer");
+  //       this.setState({dataID : undefined , data : undefined , resultID : undefined , result : undefined}); //////this is done to remove the ids and files which is no longer valid
+  //     })
+  //     .catch(err => {
+  //       console.log(err)
+  //     })
+  //   }
+  //   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  //   //NOTE!!!!!! this is curently done in order to delete the resultID once a job has been finished
+  //   //this needs to be automated some how
+  //   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  //   else if(this.state.resultID !== undefined){
+  //     this.state.tempSocket.emit("goodBye", this.state.myIP);
+  //     this.state.tempSocket.disconnect(true);
+  //     this.setState({result : undefined , resultID : undefined , tempSocket: undefined});
+  //   }
+  // }
 
-  submitValidationTrue (event) {
-    event.preventDefault();
-    this.setState({ValidationResult: true});
-    this.submitValidation(event);
-    this.state.socket.emit("dumpBuffer");
-  }
+  // submitValidationTrue (event) {
+  //   event.preventDefault();
+  //   this.setState({ValidationResult: true});
+  //   this.submitValidation(event);
+  //   this.state.socket.emit("dumpBuffer");
+  // }
 
-  submitValidationFalse (event){
-    event.preventDefault();
-    this.setState({ValidationResult: false});
-    this.submitValidation(event);
-    this.state.socket.emit("dumpBuffer");
-  }
+  // submitValidationFalse (event){
+  //   event.preventDefault();
+  //   this.setState({ValidationResult: false});
+  //   this.submitValidation(event);
+  //   this.state.socket.emit("dumpBuffer");
+  // }
 
-  submitValidation = async (event) => {
-    event.preventDefault();
-    let req = await this.matchReq(this.state.myAccount)
-    console.log("submit vali for: ", req);
-    if (req === undefined){
-      this.addNotification("Validation Submission Failed", "You are not assigned as Validator", "warning")
-    }
-    else {
-      console.log("submit result = ", this.state.ValidationResult)
-      this.state.myContract.submitValidation(req, this.state.ValidationResult,
-        { from: this.state.myAccount, gas: 200000 })
-        .then(ret => {
-          console.log(ret);
-          this.addNotification("Validation Submission Succeeded", "Validation submitted to contract", "success")
+  // submitValidation = async (event) => {
+  //   event.preventDefault();
+  //   let req = await this.matchReq(this.state.myAccount)
+  //   console.log("submit vali for: ", req);
+  //   if (req === undefined){
+  //     this.addNotification("Validation Submission Failed", "You are not assigned as Validator", "warning")
+  //   }
+  //   else {
+  //     console.log("submit result = ", this.state.ValidationResult)
+  //     this.state.myContract.submitValidation(req, this.state.ValidationResult,
+  //       { from: this.state.myAccount, gas: 200000 })
+  //       .then(ret => {
+  //         console.log(ret);
+  //         this.addNotification("Validation Submission Succeeded", "Validation submitted to contract", "success")
 
-          //disconnect the temp socket
-          this.state.tempSocket.emit("goodBye", this.state.myIP);
-          this.state.tempSocket.disconnect(true);
-          this.setState({result : undefined , resultID : undefined , tempSocket: undefined});
-        })
-        .catch(err => { //most common err here is out-of-gas VM error
-          console.log(err);
-          this.addNotification("Validation Submission Error!", "Please check console for error", "warning")
-        })
-    }
-  }
+  //         //disconnect the temp socket
+  //         this.state.tempSocket.emit("goodBye", this.state.myIP);
+  //         this.state.tempSocket.disconnect(true);
+  //         this.setState({result : undefined , resultID : undefined , tempSocket: undefined});
+  //       })
+  //       .catch(err => { //most common err here is out-of-gas VM error
+  //         console.log(err);
+  //         this.addNotification("Validation Submission Error!", "Please check console for error", "warning")
+  //       })
+  //   }
+  // }
 
-  applyAsProvider(event) {
-    event.preventDefault();
-    this.addNotification("Worker application submitted!", "Stand by for approval from the contract", "info")
-    this.state.myContract.startProviding(this.state.Time, this.state.Target,
-      this.state.Price, { from: this.state.myAccount })
-      .then(ret => {
-        this.addNotification("Worker application approved", "Your computer is now registered on the blockchain", "success")
-        console.log("Submit Result Return:", ret);
-        var StartTime = ret.receipt.blockNumber;  //record the block# when submitted, all following events will be tracked from now on
-        this.setState({RequestStartTime : StartTime})
-      })
-      .catch(err => {
-        console.log(err)
-        this.addNotification("Worker application failed", "Please check your configuration", "warning")
-      })
-  }
+  // applyAsProvider(event) {
+  //   event.preventDefault();
+  //   this.addNotification("Worker application submitted!", "Stand by for approval from the contract", "info")
+  //   this.state.myContract.startProviding(this.state.Time, this.state.Target,
+  //     this.state.Price, { from: this.state.myAccount })
+  //     .then(ret => {
+  //       this.addNotification("Worker application approved", "Your computer is now registered on the blockchain", "success")
+  //       console.log("Submit Result Return:", ret);
+  //       var StartTime = ret.receipt.blockNumber;  //record the block# when submitted, all following events will be tracked from now on
+  //       this.setState({RequestStartTime : StartTime})
+  //     })
+  //     .catch(err => {
+  //       console.log(err)
+  //       this.addNotification("Worker application failed", "Please check your configuration", "warning")
+  //     })
+  // }
 
-  stopProviding(event)  {
-    event.preventDefault();
-    this.state.myContract.stopProviding({from: this.state.myAccount})
-    .then(ret => {
-      console.log("Worker removed from providerPool");
-      this.setState({dataID : undefined , data : undefined , resultID : undefined , result : undefined}); //////this is done to remove the ids and files which is no longer valid
-    })
-    .catch(err => {
-      console.log(err)
+  // stopProviding(event)  {
+  //   event.preventDefault();
+  //   this.state.myContract.stopProviding({from: this.state.myAccount})
+  //   .then(ret => {
+  //     console.log("Worker removed from providerPool");
+  //     this.setState({dataID : undefined , data : undefined , resultID : undefined , result : undefined}); //////this is done to remove the ids and files which is no longer valid
+  //   })
+  //   .catch(err => {
+  //     console.log(err)
 
-    })
-  }
+  //   })
+  // }
 
-  changeMode(event) {
-    event.preventDefault()
-    if (this.state.mode === "USER"){
-      this.setState({ mode: "WORKER" })
-      this.setState({ count: 0, myAccount: this.state.accounts[0]})
-    } 
-    else if (this.state.mode === "WORKER"){
-      this.setState({ mode: "USER" })
-      this.setState({ count: 0, myAccount: this.state.accounts[0]})
-    } 
-    else throw String("Setting mode error!")
-  }
+  // changeMode(event) {
+  //   event.preventDefault()
+  //   if (this.state.mode === "USER"){
+  //     this.setState({ mode: "WORKER" })
+  //     this.setState({ count: 0, myAccount: this.state.accounts[0]})
+  //   } 
+  //   else if (this.state.mode === "WORKER"){
+  //     this.setState({ mode: "USER" })
+  //     this.setState({ count: 0, myAccount: this.state.accounts[0]})
+  //   } 
+  //   else throw String("Setting mode error!")
+  // }
 
   changeAccount(event) {
     event.preventDefault();
@@ -588,12 +650,14 @@ class App extends Component {
         return undefined
       })
     console.log(returnVal);
-    if(tag === "data"){
-      this.state.socket.emit(tag, this.state.data);
-    }
-    if(tag === "result"){
+    //REMOVED: No longer need to download data, only result
+    // if(tag === "data"){
+    //   this.state.socket.emit(tag, this.state.data);
+    // }
+    // if(tag === "result"){
+
       this.state.socket.emit(tag, this.state.result);
-    }
+    // }
   }
 
   ////// Supporting functions for display //////////////////////////////////////////////////////////////////
@@ -724,12 +788,13 @@ class App extends Component {
           this.addNotification("Provider Found", "Your task is being completed by: " + this.state.events[i].args.provAddr, "success")
           myEvents.push("Provider Found at: " + this.state.events[i].args.provAddr);
         }
-        if (this.state.events[i] && this.state.myAccount === this.state.events[i].args.provAddr) {
-          this.addLongNotification("You Have Been Assigned A Task", "You have been chosen to complete a request for: " + this.state.events[i].args.reqAddr + " The server id is:" + hex2ascii(this.state.events[i].args.extra) , "info");
-          this.setState({dataID : hex2ascii(this.state.events[i].args.extra), resultID : undefined});
-          myEvents.push("Assigned to a task from: " + this.state.events[i].args.reqAddr );
-          document.getElementById("dataButton").click();
-        }
+        //REMOVED: For provider/validator
+        // if (this.state.events[i] && this.state.myAccount === this.state.events[i].args.provAddr) {
+        //   this.addLongNotification("You Have Been Assigned A Task", "You have been chosen to complete a request for: " + this.state.events[i].args.reqAddr + " The server id is:" + hex2ascii(this.state.events[i].args.extra) , "info");
+        //   this.setState({dataID : hex2ascii(this.state.events[i].args.extra), resultID : undefined});
+        //   myEvents.push("Assigned to a task from: " + this.state.events[i].args.reqAddr );
+        //   document.getElementById("dataButton").click();
+        // }
       }
 
       // Request Computation Complete
@@ -738,10 +803,11 @@ class App extends Component {
           this.addNotification("Awaiting validation", "Your task is finished and waiting to be validated", "info")
           myEvents.push("Validation is now being completed");
         }
-        if (this.state.events[i] && this.state.myAccount === this.state.events[i].args.provAddr) {
-          this.addNotification("Awaiting validation", "You have completed a task an are waiting for validation", "info");
-          myEvents.push("Validation is now being completed");
-        }
+        //REMOVED: For provider/validator
+        // if (this.state.events[i] && this.state.myAccount === this.state.events[i].args.provAddr) {
+        //   this.addNotification("Awaiting validation", "You have completed a task an are waiting for validation", "info");
+        //   myEvents.push("Validation is now being completed");
+        // }
       }
 
       // Validation Assigned to Provider
@@ -750,15 +816,16 @@ class App extends Component {
           this.addNotification("Validator Found", "A validator (" + this.state.events[i].provAddr + ") was found for your task but more are still needed", "info")
           myEvents.push("Validator " + this.state.events[i].provAddr + " assigned");
         }
-        if (this.state.events[i] && this.state.myAccount === this.state.events[i].args.provAddr) {
-          this.addLongNotification("You are a validator", "You need to validate the task for: " + this.state.events[i].reqAddr + " as true or false. The server id is:"
-            + hex2ascii(this.state.events[i].args.extra), "info");
-            this.setState({resultID : hex2ascii(this.state.events[i].args.extra)});
-            console.log(hex2ascii(this.state.events[i].args.extra));
-            this.setState({dataID : undefined});
-          myEvents.push("You are a validator for: " + this.state.events[i].reqAddr );
-          document.getElementById("resultButton").click();
-        }
+        //REMOVED: Here for provider/validator
+        // if (this.state.events[i] && this.state.myAccount === this.state.events[i].args.provAddr) {
+        //   this.addLongNotification("You are a validator", "You need to validate the task for: " + this.state.events[i].reqAddr + " as true or false. The server id is:"
+        //     + hex2ascii(this.state.events[i].args.extra), "info");
+        //     this.setState({resultID : hex2ascii(this.state.events[i].args.extra)});
+        //     console.log(hex2ascii(this.state.events[i].args.extra));
+        //     this.setState({dataID : undefined});
+        //   myEvents.push("You are a validator for: " + this.state.events[i].reqAddr );
+        //   document.getElementById("resultButton").click();
+        // }
       }
 
       // Not Enough validators
@@ -768,11 +835,12 @@ class App extends Component {
             + this.state.events[i].args.provAddr, "warning")
           myEvents.push("Not enough validators found yet");
         }
-        if (this.state.myAccount === this.state.events[i].args.provAddr) {
-          this.addNotification("Not Enough Validators", "There were not enough validators to verfiy your resulting work. Please wait."
-            + this.state.events[i].args.reqAddr, "info");
-          myEvents.push("Not enough validators found yet");
-        }
+        //REMOVED: Here for provider/validator
+        // if (this.state.myAccount === this.state.events[i].args.provAddr) {
+        //   this.addNotification("Not Enough Validators", "There were not enough validators to verfiy your resulting work. Please wait."
+        //     + this.state.events[i].args.reqAddr, "info");
+        //   myEvents.push("Not enough validators found yet");
+        // }
       }
 
 
@@ -782,10 +850,11 @@ class App extends Component {
           this.addNotification("All Validators Found", "Your task is being validated. Please hold.", "success")
           myEvents.push("All validators have been found");
         }
-        if (this.state.myAccount === this.state.events[i].args.provAddr) {
-          this.addNotification("All Validators Found", "Your work is being validated. Please hold.", "info");
-          myEvents.push("All validators have been found");
-        }
+        //REMOVED: Here for validator/provider
+        // if (this.state.myAccount === this.state.events[i].args.provAddr) {
+        //   this.addNotification("All Validators Found", "Your work is being validated. Please hold.", "info");
+        //   myEvents.push("All validators have been found");
+        // }
       }
 
 
@@ -795,10 +864,11 @@ class App extends Component {
           this.addNotification("Validator signed", "Validator " + this.state.events[i].args.provAddr + " has signed", "info")
           myEvents.push("Validator " + this.state.events[i].args.provAddr + " has signed");
         }
-        if (this.state.myAccount === this.state.events[i].args.provAddr) {
-          this.addNotification("You Have signed your validation", "You have validated the request for: " + this.state.events[i].args.reqAddr, "info");
-          myEvents.push("You have signed  a validaton for " + this.state.events[i].args.reqAddr );
-        }
+        //REMOVED: Here for validator/provider
+        // if (this.state.myAccount === this.state.events[i].args.provAddr) {
+        //   this.addNotification("You Have signed your validation", "You have validated the request for: " + this.state.events[i].args.reqAddr, "info");
+        //   myEvents.push("You have signed  a validaton for " + this.state.events[i].args.reqAddr );
+        // }
       }
 
 
@@ -810,10 +880,11 @@ class App extends Component {
           myEvents.push("Your job has been finished");
           document.getElementById("resultButton").click();
         }
-        if (this.state.myAccount === this.state.events[i].args.provAddr) {
-          this.addNotification("Work Validated!", "Your work was validated and you should receive payment soon", "info");
-          myEvents.push("Your work has been validated");
-        }
+        //REMOVED: Here for provider/validator
+        // if (this.state.myAccount === this.state.events[i].args.provAddr) {
+        //   this.addNotification("Work Validated!", "Your work was validated and you should receive payment soon", "info");
+        //   myEvents.push("Your work has been validated");
+        // }
         console.log(this.state.events[i].blockNumber);
         this.setState({dataID: undefined, RequestStartTime: this.state.events[i].blockNumber+1});
         
@@ -856,34 +927,36 @@ class App extends Component {
     });
   }
 
-  showApplyButton() {
-    if (this.state.mode === 'WORKER') {
-      return (
-        <button onClick={this.applyAsProvider} style={{ margin: 10 }}>
-          Submit Provider Application
-          </button>
-      );
-    }
-  }
+  //REMOVED: Following 2 functions removed for being for worker/validator
 
-  showValidationButtons() {
-    if (this.state.mode === 'WORKER' && this.state.resultID !== undefined && this.state.dataID === undefined) {
-      return (
-        <div>
-          <h2> VALIDATIONS </h2>
-          <p>
-          <button id={'trueButton'} onClick={this.submitValidationTrue} style={{ marginBottom: 5 , marginRight : 10}} >
-            TRUE
-          </button>
-          <button id={'falseButton'} onClick={this.submitValidationFalse} style={{ marginBottom: 5 , marginLeft: 10}}>
-            FALSE
-          </button>
-          </p>
-          Current Validation Result: {'' + this.state.ValidationResult}
-        </div>
-      );
-    }
-  }
+  // showApplyButton() {
+  //   if (this.state.mode === 'WORKER') {
+  //     return (
+  //       <button onClick={this.applyAsProvider} style={{ margin: 10 }}>
+  //         Submit Provider Application
+  //         </button>
+  //     );
+  //   }
+  // }
+
+  // showValidationButtons() {
+  //   if (this.state.mode === 'WORKER' && this.state.resultID !== undefined && this.state.dataID === undefined) {
+  //     return (
+  //       <div>
+  //         <h2> VALIDATIONS </h2>
+  //         <p>
+  //         <button id={'trueButton'} onClick={this.submitValidationTrue} style={{ marginBottom: 5 , marginRight : 10}} >
+  //           TRUE
+  //         </button>
+  //         <button id={'falseButton'} onClick={this.submitValidationFalse} style={{ marginBottom: 5 , marginLeft: 10}}>
+  //           FALSE
+  //         </button>
+  //         </p>
+  //         Current Validation Result: {'' + this.state.ValidationResult}
+  //       </div>
+  //     );
+  //   }
+  // }
 
   showIDs(){
     if(this.state.dataID !== undefined && this.state.resultID === undefined){
@@ -925,23 +998,25 @@ class App extends Component {
         );
     }
   }
+  //REMOVED: Button only for worker
+  // // apply provider or nothing
+  // showSubmitButton() {
+  //   if (this.state.mode === 'USER') {
+  //     return
+  //   }
+  //   if (this.state.mode === 'WORKER') {
+  //     return (
+  //       <button onClick={this.applyAsProvider} style={{ margin: 10 }}>
+  //         Apply Provider
+  //         </button>
+  //     );
+  //   }
+  // }
 
-  // apply provider or nothing
-  showSubmitButton() {
-    if (this.state.mode === 'USER') {
-      return
-    }
-    if (this.state.mode === 'WORKER') {
-      return (
-        <button onClick={this.applyAsProvider} style={{ margin: 10 }}>
-          Apply Provider
-          </button>
-      );
-    }
-  }
   // upload script or result
   showUploadModule() {
-    if (this.state.mode === "USER" ){
+    //REMOVED: Check for user since it's now always user
+    // if (this.state.mode === "USER" ){
       return (
         <div><h2>{"UPLOAD TASK SCRIPT" }</h2>
         <form onSubmit={this.serverSubmit}>
@@ -952,33 +1027,35 @@ class App extends Component {
           {/*<input type='submit' value="Upload to server"></input>*/}
         </form></div>
       )
-    }
-    if (this.state.mode === 'WORKER' && this.state.buffer === undefined && this.state.dataID !== undefined) {
-      return(
-        <div>
-          <h2>SUBMIT RESULT PACKAGE</h2>
-          <p>Please wait a submit button will appear once the script has been executed</p>
-        </div>
-      );
-    }
-    if (this.state.mode === 'WORKER' && this.state.buffer !== undefined ) {
-      //there needs to be a resend function if the data is null(reupload button)
-      return (
-        <div><h2>SUBMIT RESULT PACKAGE</h2>
-          <form onSubmit={this.serverSubmit}>
+    // }
+    //REMOVED: Following 2 if statements removed for being for worker
+    // if (this.state.mode === 'WORKER' && this.state.buffer === undefined && this.state.dataID !== undefined) {
+    //   return(
+    //     <div>
+    //       <h2>SUBMIT RESULT PACKAGE</h2>
+    //       <p>Please wait a submit button will appear once the script has been executed</p>
+    //     </div>
+    //   );
+    // }
+    // if (this.state.mode === 'WORKER' && this.state.buffer !== undefined ) {
+    //   //there needs to be a resend function if the data is null(reupload button)
+    //   return (
+    //     <div><h2>SUBMIT RESULT PACKAGE</h2>
+    //       <form onSubmit={this.serverSubmit}>
           
-          {/*<input type='submit' value="Upload to server"></input>*/}
+    //       {/*<input type='submit' value="Upload to server"></input>*/}
        
-        <button id={'submitButton'} onClick={this.submitJob} style={{ marginTop: 10, marginLeft: 15, marginBottom: 10 }}>
-          Submit Result
-        </button>
-        </form></div>
-      );
-    }
+    //     <button id={'submitButton'} onClick={this.submitJob} style={{ marginTop: 10, marginLeft: 15, marginBottom: 10 }}>
+    //       Submit Result
+    //     </button>
+    //     </form></div>
+    //   );
+    // }
   }
   //used to align User mode with worker mode
   showUserDivider(){
-    if (this.state.mode === "USER")
+    //REMOVED: Check for user since it's now always user
+    // if (this.state.mode === "USER")
       return (
         <div style={{marginBottom: 190}}></div>
       )
@@ -986,20 +1063,21 @@ class App extends Component {
 
   //stop providing/request buttons
   showStopButtons(){
-    if(this.state.mode === 'WORKER'){
-      return(
-        <button onClick={this.stopProviding} style={{ margin: 10 }}>
-          Stop Working
-          </button>
-      )
-    }
-    if(this.state.mode === 'USER'){
+    //REMOVED: if statement removed for being for worker
+    // if(this.state.mode === 'WORKER'){
+    //   return(
+    //     <button onClick={this.stopProviding} style={{ margin: 10 }}>
+    //       Stop Working
+    //       </button>
+    //   )
+    // }
+    // if(this.state.mode === 'USER'){
       return(
         <button onClick={this.stopJob} style={{ margin: 10 }}>
           Remove Job
           </button>
       )
-    }
+    // }
   }
 
   historyBar(){
@@ -1016,8 +1094,11 @@ class App extends Component {
   //components of react: https://reactjs.org/docs/forms.html  
   render() {
 
-    this.state.mode === "USER" ? document.body.style = 'background:#F5F2D1;' : document.body.style = 'background:#E7F5D1;'
+    //REMOVED: Only do user mode now
+    //this.state.mode === "USER" ? document.body.style = 'background:#F5F2D1;' : document.body.style = 'background:#E7F5D1;'
 
+    document.body.style = 'background:#F5F2D1;'
+    
     if (!this.state.web3) {
       return <div>Loading Web3, accounts, and contract...</div>;
     }
@@ -1044,7 +1125,7 @@ class App extends Component {
           <input type="number" value={this.state.Price} onChange={this.PriceChange} />
           </label></p>
           <p>Use account:          <div> {this.state.myAccount}  </div> 
-            <br></br>
+            <br />
             {this.showIDs()}
             {this.showSubmitButton()}
           </p>
