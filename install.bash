@@ -120,7 +120,7 @@ else  #problem installing
             if sudo npm install ; then #if installed
                 echo -e "\e[92mnpm packages for client successfully installed."
             else 
-                "\e[91mProblem installing npm packages for client. Aborting installation."
+                echo -e "\e[91mProblem installing npm packages for client. Aborting installation."
                 exit
             fi
             ;;
@@ -145,7 +145,7 @@ else  #problem installing
             if sudo npm install ; then #if installed
                 echo -e "\e[92mnpm packages for localUser successfully installed."
             else 
-                "\e[91mProblem installing npm packages for localUser. Aborting installation."
+                echo -e "\e[91mProblem installing npm packages for localUser. Aborting installation."
                 exit
             fi
             ;;
@@ -170,7 +170,7 @@ else  #problem installing
             if sudo npm install ; then #if installed
                 echo -e "\e[92mnpm packages for localWorker successfully installed."
             else 
-                "\e[91mProblem installing npm packages for localWorker. Aborting installation."
+                echo -e "\e[91mProblem installing npm packages for localWorker. Aborting installation."
                 exit
             fi
             ;;
